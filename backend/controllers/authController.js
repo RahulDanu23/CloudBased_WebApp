@@ -26,7 +26,7 @@ const register = async (req, res) => {
 
     // Insert user into our public 'users' table
     if (data.user) {
-      await supabase
+      const { error: dbError } = await supabase
         .from('users')
         .insert([
           {
@@ -35,6 +35,12 @@ const register = async (req, res) => {
             name: name || '',
           },
         ]);
+      
+      if (dbError) {
+        console.error("Database insert error:", dbError);
+        // We shouldn't fail the whole registration if just the profile fails, 
+        // but we need to log it so we know why the user is missing!
+      }
     }
 
     return res.status(201).json({
