@@ -5,6 +5,10 @@ require('dotenv').config();
 const authRoutes = require('./routes/authRoutes');
 const folderRoutes = require('./routes/folderRoutes');
 const fileRoutes = require('./routes/fileRoutes');
+const shareRoutes = require('./routes/shareRoutes');
+const searchRoutes = require('./routes/searchRoutes');
+const trashRoutes = require('./routes/trashRoutes');
+const starRoutes = require('./routes/starRoutes');
 
 const app = express();
 
@@ -17,6 +21,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/folders', folderRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/shares', shareRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/trash', trashRoutes);
+app.use('/api/stars', starRoutes);
 
 // Health check route (use app.get instead of app.use)
 app.get('/', (req, res) => {
