@@ -1,5 +1,5 @@
 const supabase = require('../config/supabase');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 
 // ==========================================
 // INTERNAL USER-TO-USER SHARING
@@ -154,7 +154,7 @@ const createPublicLink = async (req, res) => {
       return res.status(400).json({ message: "Invalid resource type" });
     }
 
-    const token = uuidv4();
+    const token = randomUUID();
 
     const { data: linkShare, error } = await supabase
       .from('link_shares')

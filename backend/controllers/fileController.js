@@ -1,5 +1,5 @@
 const supabase = require('../config/supabase');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 
 // 1. Upload File (Multer approach instead of complex presigned chunking)
 const uploadFile = async (req, res) => {
@@ -11,7 +11,7 @@ const uploadFile = async (req, res) => {
     if (!file) return res.status(400).json({ message: "No file provided" });
 
     const fileExtension = file.originalname.split('.').pop();
-    const uniqueFileName = `${uuidv4()}.${fileExtension}`;
+    const uniqueFileName = `${randomUUID()}.${fileExtension}`;
     const storagePath = `${user_id}/${uniqueFileName}`; 
 
     const { error: storageError } = await supabase.storage
