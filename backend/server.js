@@ -28,7 +28,7 @@ app.use('/api/stars', starRoutes);
 
 
 // Health check route (use app.get instead of app.use)
-app.get('/', (req, res) => {
+app.get('/home', (req, res) => {
   return res.send(`Server is working`);
 });
 
