@@ -26,13 +26,20 @@ app.use('/api/search', searchRoutes);
 app.use('/api/trash', trashRoutes);
 app.use('/api/stars', starRoutes);
 
+
 // Health check route (use app.get instead of app.use)
 app.get('/', (req, res) => {
   return res.send(`Server is working`);
 });
 
+
 // Start server
 const port = process.env.PORT || 8000;
-app.listen(port, () => {
-  console.log(`Server is running on ${port}`);
-});
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`Server is running on ${port}`);
+  });
+}
+
+
+module.exports = app;
