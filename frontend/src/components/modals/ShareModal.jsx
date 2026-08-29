@@ -1,28 +1,77 @@
 import { useState } from 'react';
-import { X, Link2, Copy, Check } from 'lucide-react';
+import { X, Copy, Link as LinkIcon, Check, Loader2 } from 'lucide-react';
+import api from '../../api/axios';
 
 const ShareModal = ({ item, onClose }) => {
   const [email, setEmail] = useState('');
   const [permission, setPermission] = useState('viewer');
-  const [shares, setShares] = useState([
-    { email: 'john@example.com', permission: 'editor' }
-  ]);
-  const [copied, setCopied] = useState(false);
+  const [shares] = useState([]);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isCreatingLink, setIsCreatingLink] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState('');
+  const [shareError, setShareError] = useState('');
 
   if (!item) return null;
 
-  const handleShare = (e) => {
-    e.preventDefault();
-    if (email) {
-      setShares([...shares, { email, permission }]);
+  const handleShare = async () => {
+    if (!email) return;
+    setIsSharing(true);
+    setShareSuccess('');
+    setShareError('');
+    
+    try {
+      const payload = {
+        shared_with_email: email,
+        permission_level: permission
+      };
+      
+      if (item.type === 'folder' || item.name.indexOf('.') === -1) {
+        payload.folder_id = item.id;
+      } else {
+        payload.file_id = item.id;
+      }
+      
+      await api.post('/shares', payload);
+      setShareSuccess(`Shared successfully with ${email}`);
       setEmail('');
+      
+      setTimeout(() => setShareSuccess(''), 3000);
+    } catch (err) {
+      console.error("Share error:", err);
+      setShareError(err.response?.data?.message || 'Failed to share');
+    } finally {
+      setIsSharing(false);
     }
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(`https://clouddrive.app/s/${item.id}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyLink = async () => {
+    setIsCreatingLink(true);
+    setShareSuccess('');
+    setShareError('');
+    
+    try {
+      const payload = {};
+      if (item.type === 'folder' || item.name.indexOf('.') === -1) {
+        payload.folder_id = item.id;
+      } else {
+        payload.file_id = item.id;
+      }
+      
+      const res = await api.post('/shares/link', payload);
+      const linkToken = res.data.link.token;
+      
+      const publicUrl = `${window.location.origin}/share/${linkToken}`;
+      
+      await navigator.clipboard.writeText(publicUrl);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error("Copy link error:", err);
+      setShareError('Failed to create public link');
+    } finally {
+      setIsCreatingLink(false);
+    }
   };
 
   return (
@@ -36,7 +85,7 @@ const ShareModal = ({ item, onClose }) => {
         </div>
 
         <div className="p-5 space-y-6">
-          <form onSubmit={handleShare} className="flex gap-2">
+          <div className="flex gap-2">
             <div className="flex-1 relative">
               <input
                 type="email"
@@ -55,13 +104,16 @@ const ShareModal = ({ item, onClose }) => {
               </select>
             </div>
             <button 
-              type="submit"
-              disabled={!email}
-              className="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg disabled:opacity-50 hover:bg-zinc-800 transition-colors"
+              onClick={handleShare}
+              disabled={!email || isSharing}
+              className="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg disabled:opacity-50 hover:bg-zinc-800 transition-colors flex items-center gap-2"
             >
-              Invite
+              {isSharing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Invite'}
             </button>
-          </form>
+          </div>
+
+          {shareSuccess && <div className="p-2 text-sm text-green-700 bg-green-50 rounded-lg">{shareSuccess}</div>}
+          {shareError && <div className="p-2 text-sm text-red-700 bg-red-50 rounded-lg">{shareError}</div>}
 
           <div>
             <h4 className="text-xs font-medium text-zinc-500 uppercase tracking-wider mb-3">People with access</h4>
@@ -103,18 +155,25 @@ const ShareModal = ({ item, onClose }) => {
 
         <div className="px-5 py-4 bg-zinc-50 border-t border-zinc-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Link2 className="h-5 w-5 text-zinc-400" />
+            <LinkIcon className="h-5 w-5 text-zinc-400" />
             <div>
               <p className="text-sm font-medium text-zinc-900">Anyone with the link</p>
               <p className="text-xs text-zinc-500">Can view</p>
             </div>
           </div>
           <button 
-            onClick={copyLink}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 text-zinc-700 text-sm font-medium rounded-md hover:bg-zinc-50 transition-colors"
+            onClick={handleCopyLink}
+            disabled={isCreatingLink}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white border border-zinc-200 text-zinc-700 text-sm font-medium rounded-md hover:bg-zinc-50 transition-colors disabled:opacity-50"
           >
-            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            {copied ? 'Copied' : 'Copy link'}
+            {isCreatingLink ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isCopied ? (
+              <Check className="h-4 w-4 text-green-600" />
+            ) : (
+              <Copy className="h-4 w-4" />
+            )}
+            {isCopied ? 'Copied' : 'Copy link'}
           </button>
         </div>
       </div>

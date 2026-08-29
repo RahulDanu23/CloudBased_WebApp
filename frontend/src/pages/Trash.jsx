@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Sidebar from '../components/layout/Sidebar';
-import { RefreshCcw, Trash2, FileText, Image as ImageIcon, Video, FileMusic, FileArchive } from 'lucide-react';
+import { RefreshCcw, Trash2, FileText, Image as ImageIcon, Video, FileMusic, FileArchive, Loader2 } from 'lucide-react';
+import api from '../api/axios';
 
 const getFileIcon = (type) => {
   if (type.startsWith('image/')) return <ImageIcon className="h-6 w-6 text-blue-500" />;
@@ -13,23 +14,45 @@ const getFileIcon = (type) => {
 };
 
 const Trash = () => {
-  const [trashedItems, setTrashedItems] = useState([
-    { id: 't1', name: 'Old_Budget_2024.xlsx', type: 'application/vnd.ms-excel', deletedAt: '2024-10-20' },
-    { id: 't2', name: 'draft_logo.png', type: 'image/png', deletedAt: '2024-10-21' },
-    { id: 't3', name: 'Archived_Project', type: 'folder', deletedAt: '2024-10-25' }
-  ]);
+  const [trashedItems, setTrashedItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleRestore = (id) => {
-    setTrashedItems(trashedItems.filter(item => item.id !== id));
-    // In a real app, this would also add it back to the Dashboard state/DB
+  useEffect(() => {
+    const fetchTrash = async () => {
+      try {
+        const res = await api.get('/trash');
+        const folders = res.data.trash.folders.map(f => ({ ...f, isFolder: true, type: 'folder' }));
+        const files = res.data.trash.files;
+        setTrashedItems([...folders, ...files]);
+      } catch (err) {
+        console.error("Error fetching trash:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTrash();
+  }, []);
+
+  const handleRestore = async (item) => {
+    try {
+      const type = item.isFolder ? 'folder' : 'file';
+      await api.post(`/trash/restore/${type}/${item.id}`);
+      setTrashedItems(prev => prev.filter(i => i.id !== item.id));
+    } catch (err) {
+      console.error("Restore error:", err);
+      alert("Failed to restore item");
+    }
   };
 
-  const handlePermanentDelete = (id) => {
-    setTrashedItems(trashedItems.filter(item => item.id !== id));
-  };
-
-  const handleEmptyTrash = () => {
-    setTrashedItems([]);
+  const handlePermanentDelete = async () => {
+    if (!window.confirm("Are you sure you want to permanently delete ALL items?")) return;
+    try {
+      await api.delete('/trash/empty');
+      setTrashedItems([]);
+    } catch (err) {
+      console.error("Empty trash error:", err);
+      alert("Failed to empty trash");
+    }
   };
 
   return (
@@ -46,15 +69,20 @@ const Trash = () => {
                 <p className="text-sm text-zinc-500 mt-1">Items in trash are deleted forever after 30 days</p>
               </div>
               <button 
-                onClick={handleEmptyTrash}
+                onClick={handlePermanentDelete}
                 disabled={trashedItems.length === 0}
-                className="px-4 py-2 bg-white border border-zinc-200 text-sm font-medium text-zinc-700 rounded-lg hover:bg-zinc-50 transition-colors disabled:opacity-50"
+                className="px-4 py-2 bg-white border border-zinc-200 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
               >
                 Empty Trash
               </button>
             </div>
 
-            {trashedItems.length > 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                <Loader2 className="h-8 w-8 animate-spin mb-4" />
+                <p>Loading trash...</p>
+              </div>
+            ) : trashedItems.length > 0 ? (
               <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
                 <table className="w-full text-left text-sm">
                   <thead className="bg-zinc-50 text-zinc-500 border-b border-zinc-200">
@@ -76,21 +104,15 @@ const Trash = () => {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-zinc-500 hidden sm:table-cell">
-                          {item.deletedAt}
+                          {new Date(item.updated_at).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
                             <button 
-                              onClick={() => handleRestore(item.id)}
+                              onClick={() => handleRestore(item)}
                               className="p-1.5 text-zinc-400 hover:text-green-600 rounded hover:bg-green-50 transition-colors" title="Restore"
                             >
                               <RefreshCcw className="h-4 w-4" />
-                            </button>
-                            <button 
-                              onClick={() => handlePermanentDelete(item.id)}
-                              className="p-1.5 text-zinc-400 hover:text-red-600 rounded hover:bg-red-50 transition-colors" title="Delete permanently"
-                            >
-                              <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </td>

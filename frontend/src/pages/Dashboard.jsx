@@ -9,23 +9,8 @@ import FilePreviewModal from '../components/files/FilePreviewModal';
 import ShareModal from '../components/modals/ShareModal';
 import VersionHistoryModal from '../components/modals/VersionHistoryModal';
 import SortDropdown from '../components/ui/SortDropdown';
-import { UploadCloud } from 'lucide-react';
-
-// Mock Data
-const MOCK_FOLDERS = [
-  { id: '1', name: 'Documents' },
-  { id: '2', name: 'Images' },
-  { id: '3', name: 'Work Projects' },
-  { id: '4', name: 'Personal' }
-];
-
-const MOCK_FILES = [
-  { id: '1', name: 'Q3_Report.pdf', size: 1024 * 1024 * 2.5, type: 'application/pdf' },
-  { id: '2', name: 'presentation_v2.pptx', size: 1024 * 1024 * 15, type: 'application/vnd.ms-powerpoint' },
-  { id: '3', name: 'vacation_photo.jpg', size: 1024 * 1024 * 4.2, type: 'image/jpeg' },
-  { id: '4', name: 'meeting_recording.mp4', size: 1024 * 1024 * 150, type: 'video/mp4' },
-  { id: '5', name: 'design_assets.zip', size: 1024 * 1024 * 45, type: 'application/zip' }
-];
+import { UploadCloud, Loader2 } from 'lucide-react';
+import api from '../api/axios';
 
 const Dashboard = () => {
   const [currentPath, setCurrentPath] = useState([]);
@@ -42,8 +27,30 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('name');
   
-  // We'll move MOCK_FILES into state so we can add uploads
-  const [files, setFiles] = useState(MOCK_FILES);
+  // Real data state
+  const [files, setFiles] = useState([]);
+  const [folders, setFolders] = useState([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+
+  // Fetch data when path changes
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoadingData(true);
+      try {
+        const folderId = currentPath.length === 0 ? 'root' : currentPath[currentPath.length - 1].id;
+        const res = await api.get(`/folders/${folderId}`);
+        setFolders(res.data.children.folders || []);
+        setFiles(res.data.children.files || []);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+    fetchData();
+  }, [currentPath]);
 
   // Derived state for filtered and sorted files
   const filteredAndSortedFiles = useMemo(() => {
@@ -70,10 +77,10 @@ const Dashboard = () => {
   }, [files, searchQuery, sortBy]);
 
   const filteredFolders = useMemo(() => {
-    if (!searchQuery) return MOCK_FOLDERS;
+    if (!searchQuery) return folders;
     const lowerQuery = searchQuery.toLowerCase();
-    return MOCK_FOLDERS.filter(folder => folder.name.toLowerCase().includes(lowerQuery));
-  }, [searchQuery]);
+    return folders.filter(folder => folder.name.toLowerCase().includes(lowerQuery));
+  }, [searchQuery, folders]);
   
   const handleFolderClick = (folder) => {
     setCurrentPath([...currentPath, folder]);
@@ -98,41 +105,85 @@ const Dashboard = () => {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e) => {
+  const handleDrop = async (e) => {
     e.preventDefault();
     setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const newUploads = Array.from(e.dataTransfer.files).map(file => ({
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      const folderId = currentPath.length === 0 ? null : currentPath[currentPath.length - 1].id;
+      
+      const newUploads = droppedFiles.map(f => ({
         id: Math.random().toString(36).substr(2, 9),
-        name: file.name,
-        size: file.size,
-        type: file.type || 'application/octet-stream',
-        progress: 0
+        name: f.name,
+        progress: 0,
+        file: f
       }));
       
       setUploads(prev => [...prev, ...newUploads]);
-      
-      // Simulate upload progress
-      newUploads.forEach(upload => {
-        let currentProgress = 0;
-        const interval = setInterval(() => {
-          currentProgress += Math.random() * 20;
-          if (currentProgress >= 100) {
-            currentProgress = 100;
-            clearInterval(interval);
-            
-            // Add to files list when complete
-            setFiles(prev => [...prev, { ...upload, id: Math.random().toString(36).substr(2, 9) }]);
-          }
-          
-          setUploads(prev => prev.map(u => 
-            u.id === upload.id ? { ...u, progress: currentProgress } : u
-          ));
-        }, 300);
-      });
+
+      // Upload each file
+      for (const uploadItem of newUploads) {
+        const formData = new FormData();
+        formData.append('file', uploadItem.file);
+        if (folderId) formData.append('folderId', folderId);
+
+        try {
+          const res = await api.post('/files/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: (progressEvent) => {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              setUploads(current => current.map(u => 
+                u.id === uploadItem.id ? { ...u, progress: percentCompleted } : u
+              ));
+            }
+          });
+
+          // File uploaded successfully, add to UI
+          setFiles(prev => [res.data.file, ...prev]);
+        } catch (err) {
+          console.error("Upload failed for", uploadItem.name, err);
+          // Just mark as failed in UI or remove it (keeping simple here)
+          setUploads(current => current.filter(u => u.id !== uploadItem.id));
+        }
+      }
     }
-  }, []);
+  };
+
+  const handleDeleteItem = async (item, type) => {
+    try {
+      const endpoint = type === 'folder' ? `/folders/${item.id}` : `/files/${item.id}`;
+      await api.delete(endpoint);
+      
+      if (type === 'folder') {
+        setFolders(prev => prev.filter(f => f.id !== item.id));
+      } else {
+        setFiles(prev => prev.filter(f => f.id !== item.id));
+      }
+    } catch (err) {
+      console.error(`Error deleting ${type}:`, err);
+      alert(`Failed to delete ${type}.`);
+    }
+  };
+
+  const handleCreateFolder = async (e) => {
+    e.preventDefault();
+    if (!newFolderName.trim()) return;
+    
+    setIsCreatingFolder(true);
+    try {
+      const parentId = currentPath.length === 0 ? null : currentPath[currentPath.length - 1].id;
+      const res = await api.post('/folders', { name: newFolderName.trim(), parentId });
+      setFolders(prev => [...prev, res.data.folder].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewFolderName('');
+      setIsNewModalOpen(false);
+    } catch (err) {
+      console.error("Error creating folder:", err);
+      alert("Failed to create folder.");
+    } finally {
+      setIsCreatingFolder(false);
+    }
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#fafafa]">
@@ -170,43 +221,54 @@ const Dashboard = () => {
             
             <Breadcrumbs path={currentPath} onNavigate={handleBreadcrumbNavigate} />
             
-            {/* Folders Section */}
-            {filteredFolders.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-sm font-medium text-zinc-500 mb-3">Folders</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {filteredFolders.map((folder) => (
-                    <FolderItem 
-                      key={folder.id} 
-                      folder={folder} 
-                      onClick={() => handleFolderClick(folder)} 
-                      onShare={(folder) => setShareItem(folder)}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {/* Files Section */}
-            {filteredAndSortedFiles.length > 0 ? (
-              <div>
-                <h2 className="text-sm font-medium text-zinc-500 mb-3">Files</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {filteredAndSortedFiles.map((file) => (
-                    <FileItem 
-                      key={file.id} 
-                      file={file} 
-                      onClick={() => setPreviewFile(file)}
-                      onShare={(file) => setShareItem(file)}
-                      onVersionHistory={(file) => setVersionItem(file)}
-                    />
-                  ))}
-                </div>
+            {isLoadingData ? (
+              <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                <Loader2 className="h-8 w-8 animate-spin mb-4" />
+                <p>Loading files...</p>
               </div>
             ) : (
-              <div className="text-center py-20">
-                <p className="text-zinc-500">No matching files or folders found.</p>
-              </div>
+              <>
+                {/* Folders Section */}
+                {filteredFolders.length > 0 && (
+                  <div className="mb-8">
+                    <h2 className="text-sm font-medium text-zinc-500 mb-3">Folders</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {filteredFolders.map((folder) => (
+                        <FolderItem 
+                          key={folder.id} 
+                          folder={folder} 
+                          onClick={() => handleFolderClick(folder)} 
+                          onShare={(folder) => setShareItem(folder)}
+                          onDelete={(folder) => handleDeleteItem(folder, 'folder')}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Files Section */}
+                {filteredAndSortedFiles.length > 0 ? (
+                  <div>
+                    <h2 className="text-sm font-medium text-zinc-500 mb-3">Files</h2>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {filteredAndSortedFiles.map((file) => (
+                        <FileItem 
+                          key={file.id} 
+                          file={file} 
+                          onClick={() => setPreviewFile(file)}
+                          onShare={(file) => setShareItem(file)}
+                          onVersionHistory={(file) => setVersionItem(file)}
+                          onDelete={(file) => handleDeleteItem(file, 'file')}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-20">
+                    <p className="text-zinc-500">No matching files or folders found.</p>
+                  </div>
+                )}
+              </>
             )}
             
           </div>
@@ -219,31 +281,42 @@ const Dashboard = () => {
 
         {/* Simple Modal overlay for "+ New" */}
         {isNewModalOpen && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20">
-            <div className="bg-white rounded-xl shadow-lg border border-zinc-200 w-full max-w-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-zinc-100 flex justify-between items-center">
-                <h3 className="font-medium text-zinc-900">Create New</h3>
-                <button 
-                  onClick={() => setIsNewModalOpen(false)}
-                  className="text-zinc-400 hover:text-zinc-600"
-                >
-                  ✕
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
+                <h3 className="font-medium text-zinc-900">Create new folder</h3>
+                <button onClick={() => setIsNewModalOpen(false)} className="text-zinc-400 hover:text-zinc-600">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
               </div>
-              <div className="p-2">
-                <button 
-                  onClick={() => setIsNewModalOpen(false)}
-                  className="w-full text-left px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 rounded-lg transition-colors"
-                >
-                  New Folder
-                </button>
-                <button 
-                  onClick={() => setIsNewModalOpen(false)}
-                  className="w-full text-left px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 rounded-lg transition-colors"
-                >
-                  File Upload
-                </button>
-              </div>
+              <form onSubmit={handleCreateFolder} className="p-6">
+                <input 
+                  type="text" 
+                  autoFocus
+                  placeholder="Untitled folder" 
+                  className="w-full px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white transition-all text-zinc-900 mb-6"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                />
+                <div className="flex justify-end gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setIsNewModalOpen(false)} 
+                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-xl transition-colors"
+                    disabled={isCreatingFolder}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={!newFolderName.trim() || isCreatingFolder}
+                    className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-medium rounded-xl transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isCreatingFolder && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Create
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

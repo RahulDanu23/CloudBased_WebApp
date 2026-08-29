@@ -18,7 +18,7 @@ const formatSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
-const FileItem = ({ file, onClick, onShare, onVersionHistory }) => {
+const FileItem = ({ file, onClick, onShare, onVersionHistory, onDelete }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -86,7 +86,14 @@ const FileItem = ({ file, onClick, onShare, onVersionHistory }) => {
             Version History
           </button>
           <div className="h-px bg-zinc-100 my-1"></div>
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+          <button 
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(false);
+              if (onDelete) onDelete(file);
+            }}
+          >
             <Trash className="h-4 w-4" />
             Delete
           </button>
