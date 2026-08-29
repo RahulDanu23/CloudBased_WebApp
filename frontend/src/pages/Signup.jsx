@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Cloud } from 'lucide-react';
+import { Cloud, Loader2 } from 'lucide-react';
 
 const Signup = () => {
   const [name, setName] = useState('');
@@ -8,10 +8,18 @@ const Signup = () => {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    localStorage.setItem('isAuthenticated', 'true');
-    navigate('/');
+    setIsLoading(true);
+    
+    // Simulate network request
+    setTimeout(() => {
+      localStorage.setItem('isAuthenticated', 'true');
+      setIsLoading(false);
+      navigate('/');
+    }, 800);
   };
 
   return (
@@ -76,9 +84,10 @@ const Signup = () => {
 
           <button
             type="submit"
-            className="flex w-full justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 transition-all active:scale-[0.98]"
+            disabled={isLoading}
+            className="flex w-full justify-center items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            Create account
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create account'}
           </button>
         </form>
 

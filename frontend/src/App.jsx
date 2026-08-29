@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import Trash from './pages/Trash';
 import './App.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -21,6 +22,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/trash" 
+            element={
+              <ProtectedRoute>
+                <Trash />
               </ProtectedRoute>
             } 
           />

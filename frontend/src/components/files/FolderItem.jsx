@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Folder, MoreVertical, Edit2, Trash, Share2 } from 'lucide-react';
 
-const FolderItem = ({ folder, onClick }) => {
+const FolderItem = ({ folder, onClick, onShare }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -46,7 +46,14 @@ const FolderItem = ({ folder, onClick }) => {
           className="absolute right-0 top-12 w-48 bg-white rounded-lg shadow-lg border border-zinc-100 py-1 z-20"
           onClick={(e) => e.stopPropagation()}
         >
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+          <button 
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(false);
+              if (onShare) onShare(folder);
+            }}
+          >
             <Share2 className="h-4 w-4" />
             Share
           </button>
