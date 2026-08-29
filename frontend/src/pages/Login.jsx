@@ -1,23 +1,39 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Cloud, Loader2 } from 'lucide-react';
+import api from '../api/axios';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     setIsLoading(true);
     
-    // Simulate network request
-    setTimeout(() => {
-      localStorage.setItem('isAuthenticated', 'true');
+    try {
+      const response = await api.post('/auth/login', { email, password });
+      const token = response.data.token;
+      if (token) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('isAuthenticated', 'true');
+        if (response.data.user) {
+          localStorage.setItem('user', JSON.stringify(response.data.user));
+        }
+        navigate('/');
+      } else {
+        setError('Login succeeded but token was missing.');
+      }
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.response?.data?.error || 'Login failed. Please check credentials.';
+      setError(errMsg);
+    } finally {
       setIsLoading(false);
-      navigate('/');
-    }, 800);
+    }
   };
 
   return (
@@ -36,6 +52,12 @@ const Login = () => {
             Enter your credentials to access your files
           </p>
         </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 text-center">
+            {error}
+          </div>
+        )}
 
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-4">

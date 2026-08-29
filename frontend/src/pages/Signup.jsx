@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Cloud, Loader2 } from 'lucide-react';
+import api from '../api/axios';
 
 const Signup = () => {
   const [name, setName] = useState('');
@@ -8,18 +9,28 @@ const Signup = () => {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
     setIsLoading(true);
     
-    // Simulate network request
-    setTimeout(() => {
-      localStorage.setItem('isAuthenticated', 'true');
+    try {
+      const response = await api.post('/auth/register', { name, email, password });
+      setSuccess(response.data?.message || 'Account created! Redirecting to login...');
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
+    } catch (err) {
+      const errMsg = err.response?.data?.message || err.response?.data?.error || 'Registration failed. Please try again.';
+      setError(errMsg);
+    } finally {
       setIsLoading(false);
-      navigate('/');
-    }, 800);
+    }
   };
 
   return (
@@ -38,6 +49,18 @@ const Signup = () => {
             Start organizing your files in the cloud
           </p>
         </div>
+
+        {error && (
+          <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg border border-red-100 text-center">
+            {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="bg-green-50 text-green-700 text-sm p-3 rounded-lg border border-green-200 text-center">
+            {success}
+          </div>
+        )}
 
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-4">
