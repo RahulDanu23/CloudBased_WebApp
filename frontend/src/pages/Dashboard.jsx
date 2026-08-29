@@ -9,7 +9,7 @@ import FilePreviewModal from '../components/files/FilePreviewModal';
 import ShareModal from '../components/modals/ShareModal';
 import VersionHistoryModal from '../components/modals/VersionHistoryModal';
 import SortDropdown from '../components/ui/SortDropdown';
-import { UploadCloud, Loader2 } from 'lucide-react';
+import { UploadCloud, Loader2, FolderPlus, FileUp, FolderUp } from 'lucide-react';
 import api from '../api/axios';
 
 const Dashboard = () => {
@@ -17,6 +17,7 @@ const Dashboard = () => {
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const fileInputRef = useRef(null);
+  const folderInputRef = useRef(null);
   
   // New State for Day 10
   const [isDragging, setIsDragging] = useState(false);
@@ -296,27 +297,44 @@ const Dashboard = () => {
           className="hidden" 
           onChange={handleFileInputChange} 
         />
+        {/* Hidden folder input */}
+        <input 
+          type="file" 
+          webkitdirectory="true" 
+          directory="true" 
+          multiple 
+          ref={folderInputRef} 
+          className="hidden" 
+          onChange={handleFileInputChange} 
+        />
 
         {/* New Menu Dropdown */}
         {isNewMenuOpen && (
-          <div className="absolute top-20 left-4 z-50 bg-white rounded-xl shadow-lg border border-zinc-200 py-2 w-56 animate-in fade-in zoom-in duration-150 origin-top-left">
+          <div className="absolute top-20 left-4 z-50 bg-white rounded-xl shadow-lg border border-zinc-200 py-2 w-64 animate-in fade-in zoom-in duration-150 origin-top-left">
             <button 
-              className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-100 flex items-center gap-3"
+              className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 flex items-center gap-4"
               onClick={() => {
                 setIsNewMenuOpen(false);
                 setIsCreateFolderModalOpen(true);
               }}
             >
-              <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
-              New Folder
+              <FolderPlus className="w-5 h-5 text-zinc-500" />
+              New folder
             </button>
-            <div className="h-px bg-zinc-100 my-1"></div>
+            <div className="h-px bg-zinc-200 my-2"></div>
             <button 
-              className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-100 flex items-center gap-3"
+              className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 flex items-center gap-4"
               onClick={() => fileInputRef.current.click()}
             >
-              <UploadCloud className="w-5 h-5 text-zinc-500" />
-              File Upload
+              <FileUp className="w-5 h-5 text-zinc-500" />
+              File upload
+            </button>
+            <button 
+              className="w-full text-left px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-100 flex items-center gap-4"
+              onClick={() => folderInputRef.current.click()}
+            >
+              <FolderUp className="w-5 h-5 text-zinc-500" />
+              Folder upload
             </button>
           </div>
         )}
