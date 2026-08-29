@@ -1,0 +1,74 @@
+import { 
+  Cloud, 
+  Home, 
+  Clock, 
+  Star, 
+  Trash2, 
+  HardDrive,
+  Users
+} from 'lucide-react';
+import { NavLink } from 'react-router-dom';
+
+const Sidebar = ({ onNewClick }) => {
+  const navItems = [
+    { icon: Home, label: 'My Drive', path: '/' },
+    { icon: Users, label: 'Shared with me', path: '/shared' },
+    { icon: Clock, label: 'Recent', path: '/recent' },
+    { icon: Star, label: 'Starred', path: '/starred' },
+    { icon: Trash2, label: 'Trash', path: '/trash' },
+  ];
+
+  return (
+    <aside className="w-64 bg-[#fbfbfb] border-r border-zinc-200 flex-shrink-0 hidden md:flex flex-col h-screen sticky top-0">
+      <div className="h-16 flex items-center px-6 mb-4">
+        <div className="flex items-center gap-2 text-zinc-900">
+          <Cloud className="h-6 w-6 text-zinc-900 fill-zinc-900" />
+          <span className="font-semibold text-lg tracking-tight">CloudDrive</span>
+        </div>
+      </div>
+
+      <div className="px-3 mb-6">
+        <button 
+          onClick={onNewClick}
+          className="w-full flex items-center justify-center gap-2 bg-zinc-900 text-white px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
+        >
+          + New
+        </button>
+      </div>
+
+      <nav className="flex-1 px-3 space-y-1">
+        {navItems.map((item) => (
+          <NavLink
+            key={item.label}
+            to={item.path}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                isActive && item.path === '/' // simplistic check for demo
+                  ? 'bg-zinc-200/50 text-zinc-900 font-medium'
+                  : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+              }`
+            }
+          >
+            <item.icon className="h-4 w-4" />
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="p-4 border-t border-zinc-200">
+        <div className="flex items-center gap-2 text-zinc-600 text-sm mb-2">
+          <HardDrive className="h-4 w-4" />
+          <span>Storage</span>
+        </div>
+        <div className="w-full bg-zinc-200 rounded-full h-1.5 mb-2">
+          <div className="bg-zinc-900 h-1.5 rounded-full" style={{ width: '45%' }}></div>
+        </div>
+        <div className="text-xs text-zinc-500">
+          4.5 GB of 15 GB used
+        </div>
+      </div>
+    </aside>
+  );
+};
+
+export default Sidebar;
