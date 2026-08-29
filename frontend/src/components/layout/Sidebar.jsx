@@ -58,13 +58,7 @@ const Sidebar = ({ onNewClick }) => {
       <div className="p-4 border-t border-zinc-200">
         <div className="flex items-center gap-2 text-zinc-600 text-sm mb-2">
           <HardDrive className="h-4 w-4" />
-          <span>Storage</span>
-        </div>
-        <div className="w-full bg-zinc-200 rounded-full h-1.5 mb-2">
-          <div className="bg-zinc-900 h-1.5 rounded-full" style={{ width: '45%' }}></div>
-        </div>
-        <div className="text-xs text-zinc-500">
-          4.5 GB of 15 GB used
+          <span>Storage (Unlimited)</span>
         </div>
       </div>
     </aside>

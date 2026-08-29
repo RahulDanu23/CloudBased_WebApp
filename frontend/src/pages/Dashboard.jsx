@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Sidebar from '../components/layout/Sidebar';
 import Breadcrumbs from '../components/ui/Breadcrumbs';
@@ -14,7 +14,9 @@ import api from '../api/axios';
 
 const Dashboard = () => {
   const [currentPath, setCurrentPath] = useState([]);
-  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+  const fileInputRef = useRef(null);
   
   // New State for Day 10
   const [isDragging, setIsDragging] = useState(false);
@@ -105,49 +107,56 @@ const Dashboard = () => {
     setIsDragging(false);
   }, []);
 
+  const handleFiles = async (filesList) => {
+    const folderId = currentPath.length === 0 ? null : currentPath[currentPath.length - 1].id;
+    
+    const newUploads = Array.from(filesList).map(f => ({
+      id: Math.random().toString(36).substr(2, 9),
+      name: f.name,
+      progress: 0,
+      file: f
+    }));
+    
+    setUploads(prev => [...prev, ...newUploads]);
+
+    for (const uploadItem of newUploads) {
+      const formData = new FormData();
+      formData.append('file', uploadItem.file);
+      if (folderId) formData.append('folderId', folderId);
+
+      try {
+        const res = await api.post('/files/upload', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploads(current => current.map(u => 
+              u.id === uploadItem.id ? { ...u, progress: percentCompleted } : u
+            ));
+          }
+        });
+        setFiles(prev => [res.data.file, ...prev]);
+      } catch (err) {
+        console.error("Upload failed for", uploadItem.name, err);
+        setUploads(current => current.filter(u => u.id !== uploadItem.id));
+      }
+    }
+  };
+
   const handleDrop = async (e) => {
     e.preventDefault();
     setIsDragging(false);
-    
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const droppedFiles = Array.from(e.dataTransfer.files);
-      const folderId = currentPath.length === 0 ? null : currentPath[currentPath.length - 1].id;
-      
-      const newUploads = droppedFiles.map(f => ({
-        id: Math.random().toString(36).substr(2, 9),
-        name: f.name,
-        progress: 0,
-        file: f
-      }));
-      
-      setUploads(prev => [...prev, ...newUploads]);
-
-      // Upload each file
-      for (const uploadItem of newUploads) {
-        const formData = new FormData();
-        formData.append('file', uploadItem.file);
-        if (folderId) formData.append('folderId', folderId);
-
-        try {
-          const res = await api.post('/files/upload', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            onUploadProgress: (progressEvent) => {
-              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              setUploads(current => current.map(u => 
-                u.id === uploadItem.id ? { ...u, progress: percentCompleted } : u
-              ));
-            }
-          });
-
-          // File uploaded successfully, add to UI
-          setFiles(prev => [res.data.file, ...prev]);
-        } catch (err) {
-          console.error("Upload failed for", uploadItem.name, err);
-          // Just mark as failed in UI or remove it (keeping simple here)
-          setUploads(current => current.filter(u => u.id !== uploadItem.id));
-        }
-      }
+      handleFiles(e.dataTransfer.files);
     }
+  };
+
+  const handleFileInputChange = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      handleFiles(e.target.files);
+    }
+    // Reset input so the same file can be uploaded again if needed
+    e.target.value = '';
+    setIsNewMenuOpen(false);
   };
 
   const handleDeleteItem = async (item, type) => {
@@ -176,7 +185,7 @@ const Dashboard = () => {
       const res = await api.post('/folders', { name: newFolderName.trim(), parentId });
       setFolders(prev => [...prev, res.data.folder].sort((a, b) => a.name.localeCompare(b.name)));
       setNewFolderName('');
-      setIsNewModalOpen(false);
+      setIsCreateFolderModalOpen(false);
     } catch (err) {
       console.error("Error creating folder:", err);
       alert("Failed to create folder.");
@@ -187,7 +196,7 @@ const Dashboard = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#fafafa]">
-      <Sidebar onNewClick={() => setIsNewModalOpen(true)} />
+      <Sidebar onNewClick={() => setIsNewMenuOpen(!isNewMenuOpen)} />
       
       <div 
         className="flex-1 flex flex-col min-w-0 overflow-hidden relative"
@@ -279,13 +288,46 @@ const Dashboard = () => {
         <ShareModal item={shareItem} onClose={() => setShareItem(null)} />
         <VersionHistoryModal item={versionItem} onClose={() => setVersionItem(null)} />
 
-        {/* Simple Modal overlay for "+ New" */}
-        {isNewModalOpen && (
+        {/* Hidden file input */}
+        <input 
+          type="file" 
+          multiple 
+          ref={fileInputRef} 
+          className="hidden" 
+          onChange={handleFileInputChange} 
+        />
+
+        {/* New Menu Dropdown */}
+        {isNewMenuOpen && (
+          <div className="absolute top-20 left-4 z-50 bg-white rounded-xl shadow-lg border border-zinc-200 py-2 w-56 animate-in fade-in zoom-in duration-150 origin-top-left">
+            <button 
+              className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-100 flex items-center gap-3"
+              onClick={() => {
+                setIsNewMenuOpen(false);
+                setIsCreateFolderModalOpen(true);
+              }}
+            >
+              <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+              New Folder
+            </button>
+            <div className="h-px bg-zinc-100 my-1"></div>
+            <button 
+              className="w-full text-left px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-100 flex items-center gap-3"
+              onClick={() => fileInputRef.current.click()}
+            >
+              <UploadCloud className="w-5 h-5 text-zinc-500" />
+              File Upload
+            </button>
+          </div>
+        )}
+
+        {/* Create Folder Modal */}
+        {isCreateFolderModalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
               <div className="px-6 py-4 border-b border-zinc-100 flex justify-between items-center bg-zinc-50/50">
                 <h3 className="font-medium text-zinc-900">Create new folder</h3>
-                <button onClick={() => setIsNewModalOpen(false)} className="text-zinc-400 hover:text-zinc-600">
+                <button onClick={() => setIsCreateFolderModalOpen(false)} className="text-zinc-400 hover:text-zinc-600">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
               </div>
@@ -301,7 +343,7 @@ const Dashboard = () => {
                 <div className="flex justify-end gap-3">
                   <button 
                     type="button"
-                    onClick={() => setIsNewModalOpen(false)} 
+                    onClick={() => setIsCreateFolderModalOpen(false)} 
                     className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-xl transition-colors"
                     disabled={isCreatingFolder}
                   >
