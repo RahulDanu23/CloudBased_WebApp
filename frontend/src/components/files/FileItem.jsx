@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { FileText, MoreVertical, Image as ImageIcon, Video, FileMusic, FileArchive, Download, Share2, Edit2, Trash } from 'lucide-react';
 
-const getFileIcon = (type) => {
+const getFileIcon = (type = '') => {
   if (type.startsWith('image/')) return <ImageIcon className="h-8 w-8 text-blue-500" />;
   if (type.startsWith('video/')) return <Video className="h-8 w-8 text-red-500" />;
   if (type.startsWith('audio/')) return <FileMusic className="h-8 w-8 text-yellow-500" />;

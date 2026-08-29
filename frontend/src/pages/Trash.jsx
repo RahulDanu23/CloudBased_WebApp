@@ -4,7 +4,7 @@ import Sidebar from '../components/layout/Sidebar';
 import { RefreshCcw, Trash2, FileText, Image as ImageIcon, Video, FileMusic, FileArchive, Loader2 } from 'lucide-react';
 import api from '../api/axios';
 
-const getFileIcon = (type) => {
+const getFileIcon = (type = '') => {
   if (type.startsWith('image/')) return <ImageIcon className="h-6 w-6 text-blue-500" />;
   if (type.startsWith('video/')) return <Video className="h-6 w-6 text-red-500" />;
   if (type.startsWith('audio/')) return <FileMusic className="h-6 w-6 text-yellow-500" />;

@@ -45,7 +45,11 @@ const Dashboard = () => {
         const folderId = currentPath.length === 0 ? 'root' : currentPath[currentPath.length - 1].id;
         const res = await api.get(`/folders/${folderId}`);
         setFolders(res.data.children.folders || []);
-        setFiles(res.data.children.files || []);
+        setFiles((res.data.children.files || []).map(f => ({
+          ...f,
+          size: f.size_bytes || 0,
+          type: f.mime_type || ''
+        })));
       } catch (err) {
         console.error("Error fetching data:", err);
       } finally {
@@ -57,7 +61,7 @@ const Dashboard = () => {
 
   // Derived state for filtered and sorted files
   const filteredAndSortedFiles = useMemo(() => {
-    let result = files;
+    let result = [...files]; // Copy array to avoid mutating state directly
 
     if (searchQuery) {
       const lowerQuery = searchQuery.toLowerCase();
@@ -65,13 +69,17 @@ const Dashboard = () => {
     }
 
     result.sort((a, b) => {
+      const nameA = a.name || '';
+      const nameB = b.name || '';
+      const sizeA = a.size || 0;
+      const sizeB = b.size || 0;
+      
       if (sortBy === 'name') {
-        return a.name.localeCompare(b.name);
+        return nameA.localeCompare(nameB);
       } else if (sortBy === 'size') {
-        return b.size - a.size; // Largest first
+        return sizeB - sizeA; // Largest first
       } else if (sortBy === 'date') {
-        // Mock data doesn't have dates, so fallback to id comparison for demo
-        return b.id.localeCompare(a.id);
+        return (b.id || '').localeCompare(a.id || '');
       }
       return 0;
     });
@@ -135,7 +143,13 @@ const Dashboard = () => {
             ));
           }
         });
-        setFiles(prev => [res.data.file, ...prev]);
+        
+        const uploadedFile = {
+          ...res.data.file,
+          size: res.data.file.size_bytes || 0,
+          type: res.data.file.mime_type || ''
+        };
+        setFiles(prev => [uploadedFile, ...prev]);
       } catch (err) {
         console.error("Upload failed for", uploadItem.name, err);
         setUploads(current => current.filter(u => u.id !== uploadItem.id));
@@ -184,7 +198,12 @@ const Dashboard = () => {
     try {
       const parentId = currentPath.length === 0 ? null : currentPath[currentPath.length - 1].id;
       const res = await api.post('/folders', { name: newFolderName.trim(), parentId });
-      setFolders(prev => [...prev, res.data.folder].sort((a, b) => a.name.localeCompare(b.name)));
+      
+      const newFolder = res.data.folder;
+      if (newFolder) {
+        setFolders(prev => [...prev, newFolder].sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+      }
+      
       setNewFolderName('');
       setIsCreateFolderModalOpen(false);
     } catch (err) {
