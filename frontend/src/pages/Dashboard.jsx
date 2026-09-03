@@ -11,8 +11,10 @@ import VersionHistoryModal from '../components/modals/VersionHistoryModal';
 import SortDropdown from '../components/ui/SortDropdown';
 import { UploadCloud, Loader2, FolderPlus, FileUp, FolderUp } from 'lucide-react';
 import api from '../api/axios';
+import { useStorage } from '../context/StorageContext';
 
 const Dashboard = () => {
+  const { addStorage, removeStorage } = useStorage();
   const [currentPath, setCurrentPath] = useState([]);
   const [isNewMenuOpen, setIsNewMenuOpen] = useState(false);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
@@ -150,6 +152,9 @@ const Dashboard = () => {
           type: res.data.file.mime_type || ''
         };
         setFiles(prev => [uploadedFile, ...prev]);
+        if (uploadedFile.size) {
+          addStorage(uploadedFile.size);
+        }
       } catch (err) {
         console.error("Upload failed for", uploadItem.name, err);
         setUploads(current => current.filter(u => u.id !== uploadItem.id));
@@ -183,6 +188,9 @@ const Dashboard = () => {
         setFolders(prev => prev.filter(f => f.id !== item.id));
       } else {
         setFiles(prev => prev.filter(f => f.id !== item.id));
+        if (item.size) {
+          removeStorage(item.size);
+        }
       }
     } catch (err) {
       console.error(`Error deleting ${type}:`, err);

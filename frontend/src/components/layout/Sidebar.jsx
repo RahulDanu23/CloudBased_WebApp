@@ -8,8 +8,18 @@ import {
   Users
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useStorage } from '../../context/StorageContext';
 
-const Sidebar = ({ onNewClick }) => {
+const formatBytes = (bytes) => {
+  if (bytes === 0) return '0 GB';
+  const k = 1024;
+  const gb = bytes / (k * k * k);
+  return `${gb.toFixed(1)} GB`;
+};
+
+const Sidebar = ({ onNewClick, isShared = false }) => {
+  const { usedStorage, TOTAL_STORAGE } = useStorage();
+
   const navItems = [
     { icon: Home, label: 'My Drive', path: '/' },
     { icon: Users, label: 'Shared with me', path: '/shared' },
@@ -43,7 +53,7 @@ const Sidebar = ({ onNewClick }) => {
             to={item.path}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-                isActive && item.path === '/' // simplistic check for demo
+                isActive
                   ? 'bg-zinc-200/50 text-zinc-900 font-medium'
                   : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
               }`
@@ -58,8 +68,20 @@ const Sidebar = ({ onNewClick }) => {
       <div className="p-4 border-t border-zinc-200">
         <div className="flex items-center gap-2 text-zinc-600 text-sm mb-2">
           <HardDrive className="h-4 w-4" />
-          <span>Storage (Unlimited)</span>
+          {isShared ? (
+            <span>Storage is shared with you</span>
+          ) : (
+            <span>{formatBytes(TOTAL_STORAGE - usedStorage)} left of {formatBytes(TOTAL_STORAGE)}</span>
+          )}
         </div>
+        {!isShared && (
+          <div className="w-full bg-zinc-200 rounded-full h-1.5 mt-2">
+            <div 
+              className="bg-blue-500 h-1.5 rounded-full" 
+              style={{ width: `${Math.min(100, (usedStorage / TOTAL_STORAGE) * 100)}%` }}
+            ></div>
+          </div>
+        )}
       </div>
     </aside>
   );
