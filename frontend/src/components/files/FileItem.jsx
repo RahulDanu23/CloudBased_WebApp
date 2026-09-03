@@ -32,6 +32,23 @@ const FileItem = ({ file, onClick, onShare, onVersionHistory, onDelete }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleDownload = (e) => {
+    e.stopPropagation();
+    setIsMenuOpen(false);
+    if (file.url) {
+      const a = document.createElement('a');
+      a.href = file.url;
+      a.download = file.name || 'download';
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      alert("No download URL available");
+    }
+  };
+
   return (
     <div 
       className="group relative flex flex-col items-center p-4 rounded-xl border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer"
@@ -55,7 +72,10 @@ const FileItem = ({ file, onClick, onShare, onVersionHistory, onDelete }) => {
           className="absolute right-4 top-10 w-48 bg-white rounded-lg shadow-lg border border-zinc-100 py-1 z-20"
           onClick={(e) => e.stopPropagation()}
         >
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+          <button 
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+            onClick={handleDownload}
+          >
             <Download className="h-4 w-4" />
             Download
           </button>
