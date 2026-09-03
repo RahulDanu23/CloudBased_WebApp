@@ -1,6 +1,32 @@
-import { X, Download, Share2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Download, Share2, Loader2 } from 'lucide-react';
+import api from '../../api/axios';
 
 const FilePreviewModal = ({ file, onClose }) => {
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!file) return;
+    if (file.url) {
+      setPreviewUrl(file.url);
+      return;
+    }
+    
+    const fetchSignedUrl = async () => {
+      setIsLoading(true);
+      try {
+        const res = await api.get(`/files/${file.id}`);
+        setPreviewUrl(res.data.signedUrl);
+      } catch (error) {
+        console.error("Failed to load preview:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchSignedUrl();
+  }, [file]);
+
   if (!file) return null;
 
   const isImage = file.type.startsWith('image/');
@@ -10,9 +36,9 @@ const FilePreviewModal = ({ file, onClose }) => {
 
   const handleDownload = (e) => {
     e.stopPropagation();
-    if (file.url) {
+    if (previewUrl) {
       const a = document.createElement('a');
-      a.href = file.url;
+      a.href = previewUrl;
       a.download = file.name || 'download';
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
@@ -20,7 +46,7 @@ const FilePreviewModal = ({ file, onClose }) => {
       a.click();
       document.body.removeChild(a);
     } else {
-      alert("No download URL available");
+      alert("No download URL available yet");
     }
   };
 
@@ -39,7 +65,8 @@ const FilePreviewModal = ({ file, onClose }) => {
           </button>
           <button 
             onClick={handleDownload}
-            className="p-2 text-white hover:bg-white/10 rounded-full transition-colors"
+            disabled={!previewUrl}
+            className="p-2 text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
           >
             <Download className="h-5 w-5" />
           </button>
@@ -56,34 +83,39 @@ const FilePreviewModal = ({ file, onClose }) => {
         className="w-full h-full pt-16 pb-4 px-4 flex items-center justify-center relative"
         onClick={e => e.stopPropagation()}
       >
-        {isImage ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center text-white">
+            <Loader2 className="h-8 w-8 animate-spin mb-4" />
+            <p>Loading preview...</p>
+          </div>
+        ) : isImage ? (
           <img 
-            src={file.url || "https://images.unsplash.com/photo-1506744626753-eda818c6cce5?w=1200"} 
+            src={previewUrl || "https://images.unsplash.com/photo-1506744626753-eda818c6cce5?w=1200"} 
             alt={file.name}
             className="max-w-full max-h-full object-contain rounded-md shadow-2xl"
           />
         ) : isVideo ? (
           <video 
-            src={file.url} 
+            src={previewUrl} 
             controls 
             className="max-w-full max-h-full rounded-md shadow-2xl outline-none"
           />
         ) : isAudio ? (
           <audio 
-            src={file.url} 
+            src={previewUrl} 
             controls 
             className="w-full max-w-md shadow-2xl outline-none"
           />
         ) : isPDF ? (
           <div className="w-full max-w-5xl h-full bg-white rounded-lg flex items-center justify-center overflow-hidden">
-            {file.url ? (
-              <object data={file.url} type="application/pdf" className="w-full h-full">
-                <iframe src={file.url} className="w-full h-full border-none">
+            {previewUrl ? (
+              <object data={previewUrl} type="application/pdf" className="w-full h-full">
+                <iframe src={previewUrl} className="w-full h-full border-none">
                   <p>This browser does not support PDFs. Please download the PDF to view it.</p>
                 </iframe>
               </object>
             ) : (
-              <p className="text-zinc-500">No URL available to preview PDF</p>
+              <p className="text-zinc-500">Failed to load PDF preview.</p>
             )}
           </div>
         ) : (
@@ -92,7 +124,8 @@ const FilePreviewModal = ({ file, onClose }) => {
             <p className="text-sm text-zinc-500">This file type cannot be previewed in the browser.</p>
             <button 
               onClick={handleDownload}
-              className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
+              disabled={!previewUrl}
+              className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors disabled:opacity-50"
             >
               Download File
             </button>

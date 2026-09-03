@@ -8,6 +8,7 @@ import UploadProgress from '../components/files/UploadProgress';
 import FilePreviewModal from '../components/files/FilePreviewModal';
 import ShareModal from '../components/modals/ShareModal';
 import VersionHistoryModal from '../components/modals/VersionHistoryModal';
+import RenameModal from '../components/modals/RenameModal';
 import SortDropdown from '../components/ui/SortDropdown';
 import { UploadCloud, Loader2, FolderPlus, FileUp, FolderUp } from 'lucide-react';
 import api from '../api/axios';
@@ -27,6 +28,8 @@ const Dashboard = () => {
   const [previewFile, setPreviewFile] = useState(null);
   const [shareItem, setShareItem] = useState(null);
   const [versionItem, setVersionItem] = useState(null);
+  const [renameItem, setRenameItem] = useState(null);
+  const [starredIds, setStarredIds] = useState({ files: new Set(), folders: new Set() });
   
   // Search and Sort (Day 12)
   const [searchQuery, setSearchQuery] = useState('');
@@ -133,7 +136,7 @@ const Dashboard = () => {
     for (const uploadItem of newUploads) {
       const formData = new FormData();
       formData.append('file', uploadItem.file);
-      if (folderId) formData.append('folderId', folderId);
+      if (folderId) formData.append('folder_id', folderId);
 
       try {
         const res = await api.post('/files/upload', formData, {
@@ -198,6 +201,73 @@ const Dashboard = () => {
     }
   };
 
+  useEffect(() => {
+    const fetchStars = async () => {
+      try {
+        const res = await api.get('/stars');
+        const starsList = res.data.stars || [];
+        const fileIds = new Set(starsList.filter(s => s.resource_type === 'file').map(s => s.resource_id));
+        const folderIds = new Set(starsList.filter(s => s.resource_type === 'folder').map(s => s.resource_id));
+        setStarredIds({ files: fileIds, folders: folderIds });
+      } catch (err) {
+        console.error("Fetch stars error:", err);
+      }
+    };
+    fetchStars();
+  }, []);
+
+  const handleDownload = async (file) => {
+    try {
+      const res = await api.get(`/files/${file.id}`);
+      if (res.data.signedUrl) {
+        const a = document.createElement('a');
+        a.href = res.data.signedUrl;
+        a.download = file.name || 'download';
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    } catch (err) {
+      console.error("Download error:", err);
+      alert("Failed to download file.");
+    }
+  };
+
+  const handleToggleStar = async (item, type) => {
+    try {
+      const res = await api.post(`/stars/${type}/${item.id}`);
+      const isStarred = res.data.isStarred;
+      setStarredIds(prev => {
+        const newSet = new Set(prev[type + 's']);
+        if (isStarred) newSet.add(item.id);
+        else newSet.delete(item.id);
+        return { ...prev, [type + 's']: newSet };
+      });
+    } catch (err) {
+      console.error("Toggle star error:", err);
+    }
+  };
+
+  const handleRename = async (item, newName) => {
+    try {
+      const isFile = 'type' in item;
+      const endpoint = isFile ? `/files/${item.id}` : `/folders/${item.id}`;
+      await api.patch(endpoint, { name: newName });
+      
+      if (isFile) {
+        setFiles(prev => prev.map(f => f.id === item.id ? { ...f, name: newName } : f));
+      } else {
+        setFolders(prev => prev.map(f => f.id === item.id ? { ...f, name: newName } : f));
+      }
+      setRenameItem(null);
+    } catch (err) {
+      console.error("Rename error:", err);
+      alert("Failed to rename item.");
+    }
+  };
+
   const handleCreateFolder = async (e) => {
     e.preventDefault();
     if (!newFolderName.trim()) return;
@@ -215,8 +285,9 @@ const Dashboard = () => {
       setNewFolderName('');
       setIsCreateFolderModalOpen(false);
     } catch (err) {
-      console.error("Error creating folder:", err);
-      alert("Failed to create folder.");
+      console.error("Error creating folder:", err.response?.data || err);
+      const errMsg = err.response?.data?.message || err.message || "Failed to create folder.";
+      alert(`Failed to create folder: ${errMsg}`);
     } finally {
       setIsCreatingFolder(false);
     }
@@ -277,6 +348,9 @@ const Dashboard = () => {
                           onClick={() => handleFolderClick(folder)} 
                           onShare={(folder) => setShareItem(folder)}
                           onDelete={(folder) => handleDeleteItem(folder, 'folder')}
+                          onRename={(folder) => setRenameItem(folder)}
+                          isStarred={starredIds.folders.has(folder.id)}
+                          onToggleStar={handleToggleStar}
                         />
                       ))}
                     </div>
@@ -296,6 +370,10 @@ const Dashboard = () => {
                           onShare={(file) => setShareItem(file)}
                           onVersionHistory={(file) => setVersionItem(file)}
                           onDelete={(file) => handleDeleteItem(file, 'file')}
+                          onRename={(file) => setRenameItem(file)}
+                          isStarred={starredIds.files.has(file.id)}
+                          onToggleStar={handleToggleStar}
+                          onDownload={handleDownload}
                         />
                       ))}
                     </div>
@@ -315,6 +393,7 @@ const Dashboard = () => {
         <FilePreviewModal file={previewFile} onClose={() => setPreviewFile(null)} />
         <ShareModal item={shareItem} onClose={() => setShareItem(null)} />
         <VersionHistoryModal item={versionItem} onClose={() => setVersionItem(null)} />
+        <RenameModal item={renameItem} onClose={() => setRenameItem(null)} onRename={handleRename} />
 
         {/* Hidden file input */}
         <input 

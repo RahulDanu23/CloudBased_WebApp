@@ -125,9 +125,44 @@ const getMe = async (req, res) => {
   }
 };
 
+// 5. Forgot Password
+const forgotPassword = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and new password are required" });
+    }
+
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (userError || !userData) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const { data, error } = await supabase.auth.admin.updateUserById(
+      userData.id,
+      { password: password }
+    );
+
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    return res.status(200).json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error("Forgot password error:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 module.exports = {
   register,
   login,
   logout,
   getMe,
+  forgotPassword,
 };

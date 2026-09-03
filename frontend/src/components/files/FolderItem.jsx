@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Folder, MoreVertical, Edit2, Trash, Share2 } from 'lucide-react';
+import { Folder, MoreVertical, Edit2, Trash, Share2, Star } from 'lucide-react';
 
-const FolderItem = ({ folder, onClick, onShare, onDelete }) => {
+const FolderItem = ({ folder, onClick, onShare, onDelete, onRename, isStarred, onToggleStar }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -20,8 +20,13 @@ const FolderItem = ({ folder, onClick, onShare, onDelete }) => {
       className="group relative flex items-center p-3 rounded-xl border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer"
       onClick={() => onClick && onClick(folder)}
     >
-      <div className="flex-shrink-0 mr-3">
+      <div className="flex-shrink-0 mr-3 relative">
         <Folder className="h-6 w-6 text-zinc-900 fill-zinc-100" />
+        {isStarred && (
+          <div className="absolute -top-1 -right-1">
+            <Star className="h-3 w-3 text-yellow-400 fill-current" />
+          </div>
+        )}
       </div>
       
       <div className="flex-1 min-w-0">
@@ -51,13 +56,31 @@ const FolderItem = ({ folder, onClick, onShare, onDelete }) => {
             onClick={(e) => {
               e.stopPropagation();
               setIsMenuOpen(false);
+              if (onToggleStar) onToggleStar(folder, 'folder');
+            }}
+          >
+            <Star className={`h-4 w-4 ${isStarred ? 'text-yellow-500 fill-current' : ''}`} />
+            {isStarred ? 'Unstar' : 'Star'}
+          </button>
+          <button 
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(false);
               if (onShare) onShare(folder);
             }}
           >
             <Share2 className="h-4 w-4" />
             Share
           </button>
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+          <button 
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(false);
+              if(onRename) onRename(folder);
+            }}
+          >
             <Edit2 className="h-4 w-4" />
             Rename
           </button>

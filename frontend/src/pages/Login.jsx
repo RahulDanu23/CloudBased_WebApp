@@ -79,9 +79,9 @@ const Login = () => {
                 <label className="block text-sm font-medium text-zinc-700">
                   Password
                 </label>
-                <a href="#" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
+                <Link to="/forgot-password" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <input
                 type="password"

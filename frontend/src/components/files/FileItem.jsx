@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { FileText, MoreVertical, Image as ImageIcon, Video, FileMusic, FileArchive, Download, Share2, Edit2, Trash } from 'lucide-react';
+import { FileText, MoreVertical, Image as ImageIcon, Video, FileMusic, FileArchive, Download, Share2, Edit2, Trash, Star } from 'lucide-react';
 
 const getFileIcon = (type = '') => {
   if (type.startsWith('image/')) return <ImageIcon className="h-8 w-8 text-blue-500" />;
@@ -18,7 +18,7 @@ const formatSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
-const FileItem = ({ file, onClick, onShare, onVersionHistory, onDelete }) => {
+const FileItem = ({ file, onClick, onShare, onVersionHistory, onDelete, onRename, isStarred, onToggleStar, onDownload }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -32,20 +32,23 @@ const FileItem = ({ file, onClick, onShare, onVersionHistory, onDelete }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleDownload = (e) => {
+  const handleDownloadClick = (e) => {
     e.stopPropagation();
     setIsMenuOpen(false);
-    if (file.url) {
-      const a = document.createElement('a');
-      a.href = file.url;
-      a.download = file.name || 'download';
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    if (onDownload) {
+      onDownload(file);
     } else {
-      alert("No download URL available");
+      // Fallback
+      if (file.url) {
+        const a = document.createElement('a');
+        a.href = file.url;
+        a.download = file.name || 'download';
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
     }
   };
 
@@ -54,6 +57,10 @@ const FileItem = ({ file, onClick, onShare, onVersionHistory, onDelete }) => {
       className="group relative flex flex-col items-center p-4 rounded-xl border border-zinc-200 bg-white hover:border-zinc-300 hover:shadow-sm transition-all cursor-pointer"
       onClick={onClick}
     >
+      <div className="absolute top-3 left-3">
+        {isStarred && <Star className="h-4 w-4 text-yellow-400 fill-current" />}
+      </div>
+      
       <div className="flex w-full justify-end opacity-0 group-hover:opacity-100 transition-opacity focus-within:opacity-100">
         <button 
           className="p-1 rounded-md text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100"
@@ -74,10 +81,21 @@ const FileItem = ({ file, onClick, onShare, onVersionHistory, onDelete }) => {
         >
           <button 
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
-            onClick={handleDownload}
+            onClick={handleDownloadClick}
           >
             <Download className="h-4 w-4" />
             Download
+          </button>
+          <button 
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(false);
+              if (onToggleStar) onToggleStar(file, 'file');
+            }}
+          >
+            <Star className={`h-4 w-4 ${isStarred ? 'text-yellow-500 fill-current' : ''}`} />
+            {isStarred ? 'Unstar' : 'Star'}
           </button>
           <button 
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
@@ -90,7 +108,14 @@ const FileItem = ({ file, onClick, onShare, onVersionHistory, onDelete }) => {
             <Share2 className="h-4 w-4" />
             Share
           </button>
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors">
+          <button 
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(false);
+              if(onRename) onRename(file);
+            }}
+          >
             <Edit2 className="h-4 w-4" />
             Rename
           </button>
